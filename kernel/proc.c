@@ -274,7 +274,7 @@ fork(void)
     return -1;
   }
   np->sz = p->sz;
-
+  np->mask = p->mask;
   np->parent = p;
 
   // copy saved user registers.
@@ -282,7 +282,7 @@ fork(void)
 
   // Cause fork to return 0 in the child.
   np->trapframe->a0 = 0;
-
+  
   // increment reference counts on open file descriptors.
   for(i = 0; i < NOFILE; i++)
     if(p->ofile[i])
@@ -692,4 +692,15 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+uint64
+calc_nproc() {
+  struct proc *p;
+  uint64 res = 0;
+  for (p = proc; p < &proc[NPROC]; p++) {
+    if (p -> state != UNUSED) res++;
+  }
+  return res;
+
 }

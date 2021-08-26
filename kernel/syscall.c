@@ -104,6 +104,8 @@ extern uint64 sys_unlink(void);
 extern uint64 sys_wait(void);
 extern uint64 sys_write(void);
 extern uint64 sys_uptime(void);
+extern uint64 sys_trace(void);
+extern uint64 sys_sysinfo(void);
 
 static uint64 (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -127,8 +129,35 @@ static uint64 (*syscalls[])(void) = {
 [SYS_link]    sys_link,
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
+[SYS_trace]   sys_trace,
+[SYS_sysinfo] sys_sysinfo,
 };
-
+static char* sys_call_names[] = {
+  "",
+  "fork",
+  "exit",
+  "wait",
+  "pipe",
+  "read",
+  "kill",
+  "exec",
+  "fstat",
+  "chdir",
+  "dup",
+  "getpid",
+  "sbark",
+  "sleep",
+  "uptime",
+  "open",
+  "write",
+  "mknod",
+  "unlink",
+  "link",
+  "mkdir",
+  "close",
+  "trace",
+  "sysinfo"
+};
 void
 syscall(void)
 {
@@ -138,6 +167,13 @@ syscall(void)
   num = p->trapframe->a7;
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
     p->trapframe->a0 = syscalls[num]();
+    //printf("num is [%d], mask is [%d], res is [%d]\n", num, p -> mask, ((p -> mask) >> num) & 1);
+  
+    if (((p -> mask) >> num) & 1) {
+      //printf("begin\n");
+      printf("%d: syscall %s -> %d\n", p -> pid, sys_call_names[num], p -> trapframe -> a0);
+      //printf("end\n");
+    }
   } else {
     printf("%d %s: unknown sys call %d\n",
             p->pid, p->name, num);
