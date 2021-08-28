@@ -1,0 +1,9 @@
+{
+    "C_Cpp.errorSquiggles": "Disabled",
+    "files.associations": {
+        "user.h": "c",
+        "stdio.h": "c",
+        "cstdio": "c",
+        "*.tcc": "c"
+    }
+}

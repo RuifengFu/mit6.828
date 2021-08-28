@@ -108,7 +108,6 @@ sys_trace(void) {
   if (argint(0, &mask) < 0) return -1;
   struct proc *p = myproc();
   p -> mask = mask;
-  printf("modify end\n");
   return 0;
 }
 

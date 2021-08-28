@@ -167,12 +167,8 @@ syscall(void)
   num = p->trapframe->a7;
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
     p->trapframe->a0 = syscalls[num]();
-    //printf("num is [%d], mask is [%d], res is [%d]\n", num, p -> mask, ((p -> mask) >> num) & 1);
-  
     if (((p -> mask) >> num) & 1) {
-      //printf("begin\n");
       printf("%d: syscall %s -> %d\n", p -> pid, sys_call_names[num], p -> trapframe -> a0);
-      //printf("end\n");
     }
   } else {
     printf("%d %s: unknown sys call %d\n",
