@@ -1,0 +1,3 @@
+Page 0 contains text and dat;
+Page 2 is stack page.
+Page 1 can't be access. because its user number is 0, it's a guard page.
