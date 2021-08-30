@@ -158,6 +158,11 @@ void            uartputc_sync(int);
 int             uartgetc(void);
 
 // vm.c
+void            pkfreewalk(pagetable_t pagetable);
+pte_t *         walk(pagetable_t, uint64, int);
+void            pkvminit(pagetable_t*);
+void            pkvmmap(pagetable_t*, uint64, uint64, uint64, int);
+int             update_kpagetable(pagetable_t *, pagetable_t *, uint64 , uint64 );
 void            kvminit(void);
 void            kvminithart(void);
 uint64          kvmpa(uint64);
@@ -193,7 +198,9 @@ void            virtio_disk_intr(void);
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
 
-
+//vmcopyin
+int             copyin_new(pagetable_t, char*, uint64, uint64);
+int             copyinstr_new(pagetable_t, char *, uint64, uint64);
 
 // stats.c
 void            statsinit(void);
@@ -222,4 +229,8 @@ void            sockclose(struct sock *);
 int             sockread(struct sock *, uint64, int);
 int             sockwrite(struct sock *, uint64, int);
 void            sockrecvudp(struct mbuf*, uint32, uint16, uint16);
+
+
+
+
 #endif

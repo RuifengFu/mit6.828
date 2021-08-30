@@ -20,7 +20,7 @@ static void wakeup1(struct proc *chan);
 static void freeproc(struct proc *p);
 
 extern char trampoline[]; // trampoline.S
-
+extern pagetable_t kernel_pagetable; //vm.c
 // initialize the proc table at boot time.
 void
 procinit(void)
@@ -121,11 +121,22 @@ found:
     return 0;
   }
 
+  pkvminit(&(p -> kpagetable));
   // Set up new context to start executing at forkret,
   // which returns to user space.
   memset(&p->context, 0, sizeof(p->context));
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
+    
+    
+
+  uint64 va = KSTACK((int) (p - proc));
+  uint64 pa = PTE2PA(*walk(kernel_pagetable, va, 0));
+  pkvmmap(&(p -> kpagetable), va, pa, PGSIZE, PTE_R | PTE_W);
+
+
+
+
 
   return p;
 }
@@ -141,7 +152,12 @@ freeproc(struct proc *p)
   p->trapframe = 0;
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
+  //vmprint(p -> kpagetable);
+  if (p -> kpagetable)
+    pkfreewalk(p -> kpagetable);
+  //vmprint(p -> kpagetable);
   p->pagetable = 0;
+  p->kpagetable = 0;
   p->sz = 0;
   p->pid = 0;
   p->parent = 0;
@@ -229,7 +245,7 @@ userinit(void)
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
-
+  update_kpagetable(&(p -> pagetable), &(p -> kpagetable), 0, p -> sz);
   release(&p->lock);
 }
 
@@ -243,13 +259,17 @@ growproc(int n)
 
   sz = p->sz;
   if(n > 0){
+    if (PGROUNDUP(sz + n) >= PLIC) return -1;
     if((sz = uvmalloc(p->pagetable, sz, sz + n)) == 0) {
       return -1;
     }
+    
   } else if(n < 0){
     sz = uvmdealloc(p->pagetable, sz, sz + n);
   }
+  update_kpagetable(&(p -> pagetable), &(p -> kpagetable), p -> sz, sz);
   p->sz = sz;
+
   return 0;
 }
 
@@ -274,15 +294,15 @@ fork(void)
     return -1;
   }
   np->sz = p->sz;
-
   np->parent = p;
+
 
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);
 
   // Cause fork to return 0 in the child.
   np->trapframe->a0 = 0;
-
+  
   // increment reference counts on open file descriptors.
   for(i = 0; i < NOFILE; i++)
     if(p->ofile[i])
@@ -294,7 +314,7 @@ fork(void)
   pid = np->pid;
 
   np->state = RUNNABLE;
-
+  update_kpagetable(&(np -> pagetable), &(np -> kpagetable), 0, np -> sz);
   release(&np->lock);
 
   return pid;
@@ -471,18 +491,25 @@ scheduler(void)
         // Switch to chosen process.  It is the process's job
         // to release its lock and then reacquire it
         // before jumping back to us.
+        w_satp(MAKE_SATP(p -> kpagetable));
+        sfence_vma();
         p->state = RUNNING;
         c->proc = p;
         swtch(&c->context, &p->context);
 
+
         // Process is done running for now.
         // It should have changed its p->state before coming back.
+        w_satp(MAKE_SATP(kernel_pagetable));
+        sfence_vma();
         c->proc = 0;
 
         found = 1;
       }
       release(&p->lock);
     }
+    w_satp(MAKE_SATP(kernel_pagetable));
+    sfence_vma();
 #if !defined (LAB_FS)
     if(found == 0) {
       intr_on();
@@ -662,6 +689,7 @@ either_copyin(void *dst, int user_src, uint64 src, uint64 len)
 {
   struct proc *p = myproc();
   if(user_src){
+    //printf("proc\n");
     return copyin(p->pagetable, dst, src, len);
   } else {
     memmove(dst, (char*)src, len);
