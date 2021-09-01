@@ -1,0 +1,33 @@
+1.
+24:	4635                	li	a2,13
+a2 holds 13
+
+2.
+function g are inlined in function f as x + 3
+function f are inlined in function. 
+
+
+3.
+34:	5f8080e7          	jalr	1528(ra) # 628 <printf>
+
+void
+printf(const char *fmt, ...)
+{
+ 628:	711d                	addi	sp,sp,-96
+
+0x628
+
+4.
+0x38
+
+
+5.
+He110 World
+little-endian
+0x726c6400
+no
+
+
+6.
+x=3 y=1509405784
+the value of a2

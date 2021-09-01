@@ -384,17 +384,21 @@ copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len)
   while(len > 0){
     va0 = PGROUNDDOWN(srcva);
     pa0 = walkaddr(pagetable, va0);
+    //printf("------%d %p %p\n",len, va0, pa0);
     if(pa0 == 0)
       return -1;
     n = PGSIZE - (srcva - va0);
     if(n > len)
       n = len;
+      
+    //printf("dst [%p], s [%p]\n", dst, (pa0 + (srcva - va0)));
     memmove(dst, (void *)(pa0 + (srcva - va0)), n);
-
+//printf("+++------%d %p %p\n",len, va0, pa0);
     len -= n;
     dst += n;
     srcva = va0 + PGSIZE;
   }
+  //printf("0000000000000000\n");
   return 0;
 }
 
