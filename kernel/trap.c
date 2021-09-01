@@ -67,12 +67,78 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
-  } else {
+  } 
+  else if (r_scause() == 13 || r_scause() == 15) {
+    //static int cnt = 0;
+    //printf("Trap: page fault %d\n", ++cnt);
+    uint64 stval = r_stval();
+    struct proc *p = myproc();
+    //printf("stack is %p\nstval is %p\n size is %p\n", p -> kstack, stval, p -> sz);
+    if (p -> sz >= MAXVA) {
+      printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+      printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+      printf("bad size\n");
+      p -> killed = 1;
+      goto RET;
+    }
+    if (stval >= p -> sz) {
+      printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+      printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+      printf("overflows\n");
+      p -> killed = 1;
+      goto RET;
+    }  
+
+
+    // else if (stval < p -> kstack) {
+    //   printf("%p\n", stval);
+    //   printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+    //   printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+    //   printf("below stack \n");
+    //   p -> killed = 1;
+    //   goto RET;
+    // }
+    char *mem;
+    stval = PGROUNDDOWN(stval);
+    if (stval < p -> trapframe -> sp) {
+       printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+      printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+      printf("guard page\n");
+      p -> killed = 1;
+      goto RET;
+    }
+    mem = kalloc();
+    if(mem == 0) {
+      printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+      printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+      printf("kalloc failed\n");
+      p -> killed = 1;
+      goto RET;
+    }
+    else {
+      memset(mem, 0, PGSIZE);
+      if(mappages(p -> pagetable, stval, PGSIZE, (uint64)mem, PTE_W|PTE_X|PTE_R|PTE_U) != 0){
+       printf("GG\n");
+       printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+      printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+      printf("map failed\n");
+      p -> killed = 1;
+      goto RET;
+     }
+    }
+    
+  }
+
+
+
+
+  else {
+    
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     p->killed = 1;
   }
-
+RET:
   if(p->killed)
     exit(-1);
 

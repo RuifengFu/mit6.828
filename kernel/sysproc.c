@@ -41,14 +41,20 @@ sys_wait(void)
 uint64
 sys_sbrk(void)
 {
-  int addr;
+  uint64 addr;
   int n;
 
   if(argint(0, &n) < 0)
     return -1;
   addr = myproc()->sz;
-  if(growproc(n) < 0)
-    return -1;
+  //if (addr + n > MAXVA || addr + n < addr) return -1;
+  myproc() -> sz = addr + n;
+  if(n < 0){
+    if (addr + n < 0) n = -addr;
+    uvmdealloc(myproc()->pagetable, addr, addr + n);
+  }
+  // if(growproc(n) < 0)
+  //   return -1;
   return addr;
 }
 
