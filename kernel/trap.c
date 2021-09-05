@@ -11,6 +11,12 @@ uint ticks;
 
 extern char trampoline[], uservec[], userret[];
 
+extern int ref[PHYSTOP/PGSIZE];
+extern struct {
+  struct spinlock lock;
+  struct run *freelist;
+  
+} kmem;
 // in kernelvec.S, calls kerneltrap().
 void kernelvec();
 
@@ -67,6 +73,40 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
+  } else if(r_scause() == 15 || r_scause() == 13) {
+    //printf("in\n");
+    uint64 va = r_stval();
+    uint64 pa;
+    pte_t *pte;
+    struct proc *p = myproc();
+    va = PGROUNDDOWN(va);
+    pte = walk(p -> pagetable, va, 0);
+    //printf("trap: pte is %p\n", *pte);
+    if (pte == 0) exit(-1);
+    if (!(*pte & PTE_V) || !(*pte& PTE_U)) exit(-1);
+    if ((*pte & PTE_COW) == 0) {
+      printf("trap: pte is %p\n", *pte);
+      exit(-1);
+    }
+
+    pa = PTE2PA(*pte);
+    //printf("pte is %p\n", va);
+    //printf("pa  is %p\n", pa);
+    char *mem;
+    mem = kalloc();
+    if (mem == 0) {
+      printf("no memory");
+      exit(-1);
+    }
+    memset(mem, 0, PGSIZE);
+    memmove(mem, (char*)pa, PGSIZE);
+    *pte = PA2PTE((uint64)mem) | (PTE_W|PTE_X|PTE_R|PTE_U) | PTE_V;
+    kfree((void *)pa);
+    
+
+
+
+
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
