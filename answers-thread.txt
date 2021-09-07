@@ -1,0 +1,6 @@
+2 threads may have race.
+
+when two threads decide to add two entry at the same position.
+the insert should mutex.
+
+
