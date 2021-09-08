@@ -1,3 +1,4 @@
+
 #include "types.h"
 #include "param.h"
 #include "memlayout.h"
@@ -5,6 +6,12 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "stat.h"
+#include "fs.h"
+#include "sleeplock.h"
+#include "file.h"
+#include "fcntl.h"
+
 
 struct spinlock tickslock;
 uint ticks;
@@ -67,7 +74,43 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
+  } else if (r_scause() == 13 || r_scause() == 15) {
+    uint64 va = r_stval();
+    int i = 0;
+    char *mem;
+    if (va >= p -> sz) goto trap;
+    if (va < p -> trapframe -> sp) goto trap;
+
+    uint flag = 0;
+    for (i = 0; i < MAXVMA; i++) {
+      struct VMA *v = &p -> vma[i];
+      if (v -> used && va >= v -> addr && va < v -> addr + v -> len) {
+        mem = kalloc();
+        memset(mem, 0, PGSIZE);
+        if (mem == 0) {
+          printf("kalloc failed\n");
+          exit(-1);
+        }
+        va = PGROUNDDOWN(va);
+        uint64 off = v -> start_point + va - v -> addr;
+
+        if (mappages(p -> pagetable, va, PGSIZE, (uint64)mem, (v -> prot << 1) | PTE_U) != 0) {
+          kfree(mem);
+          printf("map failed\n");
+          exit(-1);
+        }
+        ilock(v -> f -> ip);
+        readi(v -> f -> ip, 1, va, off, PGSIZE);
+        iunlock(v -> f -> ip);
+        flag = 1;
+        break;
+      }
+    }
+    if (!flag) goto trap;
+
+
   } else {
+    trap:
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     p->killed = 1;
